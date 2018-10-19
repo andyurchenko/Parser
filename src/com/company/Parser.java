@@ -11,43 +11,28 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 public class Parser {
 
-    private File pathToDataToParse;//Каталог, где лежат фалы для парсинга
-    //private String pathnameFromBreadcrumbs;//Каталоги, которые мы получаем из breadcrumbs
-    private ArrayList<String> breadcrumbs = new ArrayList<String>(); //Разобранный breadcrumbs
+    private File pathToDataToParse;//Каталог, где лежат фалы для парсинг
+
+    public static void main(String[] args) {
+        Parser parser = new Parser(args[0]);
+        parser.parseFiles(args[0]);
+    }
+
+    public Parser(String inPathToDataToParse) {
+        this.pathToDataToParse = new File(inPathToDataToParse);
+    }
 
     public void parseFiles(String inPath) {
         try {
-            this.setPathToDataToParse(new File(inPath));
-
             File[] listOfFilesToParse = this.getListFiles(inPath);
-
-            String[] parsedData = new String[7]; //конкретные данные, которые мы ищем на странице
-
             if(listOfFilesToParse != null && listOfFilesToParse.length != 0) {
                 for(File file : listOfFilesToParse) {
+                    ParsedData parsedData = this.getAllDataFromHTML(file);
+                    this.writeToCSV(parsedData.getParsedData());
 
-                    Document htmlDocument = Jsoup.parse(file, null);//html страница, полученная из JSoup после парсинга файла
-                    // URL
-                    parsedData[0] = this.getURL(htmlDocument);
-                    //Title
-                    parsedData[1] = this.getTitle(htmlDocument);
-                    //Description
-                    parsedData[2] = this.getDescription(htmlDocument);
-                    //H1
-                    parsedData[3] = parsedData[1];
-                    //Best review
-                    parsedData[4] = this.getBestReview(htmlDocument);
-                    //Breadcrumbs
-                    parsedData[5] = this.getBreadcrumbsForCSV(htmlDocument);
-                    //Page path
-                    parsedData[6] = this.getFilePath(file);
-
-                    this.writeParsedDataToCSV(parsedData);
-
-                    File foldersToCreate = new File(this.getPathFromBreadcrumbs());
+                    File foldersToCreate = new File(this.getPathFromBreadcrumbs(parsedData.getBreadcrumbs()));
                     foldersToCreate.mkdirs();
-                    Files.move(Paths.get(file.getAbsolutePath()), Paths.get(this.getPathFromBreadcrumbs() + file.getName()), REPLACE_EXISTING);
-
+                    Files.move(Paths.get(file.getAbsolutePath()), Paths.get(this.getPathFromBreadcrumbs(parsedData.getBreadcrumbs()) + file.getName()), REPLACE_EXISTING);
                 }
             }
         } catch(IOException ex) {
@@ -55,9 +40,27 @@ public class Parser {
         }
     }
 
-    public static void main(String[] args) {
-        Parser parser = new Parser();
-        parser.parseFiles(args[0]);
+    private ParsedData getAllDataFromHTML(File inFile) {
+        ParsedData parsedData = new ParsedData();
+        try {
+            Document htmlDocument = Jsoup.parse(inFile, null);//html страница, полученная из JSoup после парсинга файла
+            parsedData.setUrl(this.getURL(htmlDocument));
+            //Title
+            parsedData.setTitle(this.getTitle(htmlDocument));
+            //Description
+            parsedData.setDescription(this.getDescription(htmlDocument));
+            //H1
+            parsedData.setH1(this.getH1(htmlDocument));
+            //Bestreview
+            parsedData.setBestreview(this.getBestReview(htmlDocument));
+            //Breadcrumbs
+            parsedData.setBreadcrumbs(this.getBreadcrumbsForCSV(htmlDocument));
+            //Page path
+            parsedData.setPagepath(this.getFilePath(inFile));
+        } catch(IOException ex) {
+            ex.printStackTrace();
+        }
+        return parsedData;
     }
 
     private String encloseInQuotes(String inString) {
@@ -127,46 +130,49 @@ public class Parser {
         }
     }
 
-    private void setBreadcrumbs(Document inHTMLDocument) {
-        this.breadcrumbs.clear();
-        if (inHTMLDocument.select("ul.c-breadcrumbs__list > li.c-breadcrumbs__item > a") != null) {
-            Elements breadcrumbs = inHTMLDocument.select("ul.c-breadcrumbs__list > li.c-breadcrumbs__item > a");
-            for (Element element : breadcrumbs) {
-                this.breadcrumbs.add(element.text());
-            }
+    private String getH1(Document inHTMLDocument) {
+        if (inHTMLDocument.selectFirst("div.o-pdp-topic__title h1[class=e-h1 sel-product-title]") != null) {
+            return inHTMLDocument.select("div.o-pdp-topic__title h1[class=e-h1 sel-product-title]").text();
+        } else {
+            return null;
         }
     }
 
-    private ArrayList<String> getBreadcrumbs() {
-        return this.breadcrumbs;
-    }
-
-    private String getBreadcrumbsForCSV(Document inHtmlDocument) {
-        this.setBreadcrumbs(inHtmlDocument);
-        StringBuilder strBreadcrumbs = new StringBuilder(); //строка вида Главная > Ноутбуки > HP
-        int i = 0;
-        for (String element : this.getBreadcrumbs()) {
-                strBreadcrumbs.append(element);
+    private String getBreadcrumbsForCSV(Document inHTMLDocument) {
+        if (inHTMLDocument.select("ul.c-breadcrumbs__list > li.c-breadcrumbs__item > a") != null) {
+            StringBuilder strBreadcrumbs = new StringBuilder(); //строка вида Главная > Ноутбуки > HP
+            Elements breadcrumbs = inHTMLDocument.select("ul.c-breadcrumbs__list > li.c-breadcrumbs__item > a");
+            int i = 0;
+            for (Element element : breadcrumbs) {
+                strBreadcrumbs.append(element.text());
                 if (i < breadcrumbs.size() - 1) {
                     strBreadcrumbs.append(" > ");
                 }
                 i++;
             }
             return strBreadcrumbs.toString();
+        } else {
+            return null;
+        }
     }
 
-    public String getPathFromBreadcrumbs() {
+
+    public String getPathFromBreadcrumbs(String inBreadcrumbs) {
         StringBuilder pathname = new StringBuilder();
-        ArrayList<String> dirs = this.getBreadcrumbs();
-        if (dirs == null || dirs.size() == 0) {
-            pathname.append(this.getPathToDataToParse()).append(File.separator).append("_unsorted");
+        if(inBreadcrumbs == null) {
+            return pathname.append(this.getPathToDataToParse()).append(File.separator).append("_unsorted").toString();
         } else {
-            pathname.append(this.getPathToDataToParse()).append(File.separator);
-            for (String dir : dirs) {
-                pathname.append(dir).append(File.separator);
-            }
+            String[] dirs = inBreadcrumbs.split(" > ");
+//            if (dirs.length == 0) {
+//                return pathname.append(this.getPathToDataToParse()).append(File.separator).append("_unsorted").toString();
+//            } else {
+                pathname.append(this.getPathToDataToParse()).append(File.separator);
+                for (String dir : dirs) {
+                    pathname.append(dir).append(File.separator);
+                }
+                return pathname.toString();
+//            }
         }
-        return pathname.toString();
     }
 
     private String getFilePath(File inFile) {
@@ -177,27 +183,92 @@ public class Parser {
         return this.pathToDataToParse;
     }
 
-    private void setPathToDataToParse(File inPathToDatatoParse) {
-        this.pathToDataToParse = inPathToDatatoParse;
-    }
-
-    private void writeParsedDataToCSV(String[] inParsedData) {
-        try{
+    private void writeToCSV(String[] inParsedData) {
+        try {
             File csv = new File(this.getPathToDataToParse() + File.separator + "db.csv");
             csv.createNewFile();
             FileWriter fileWriter = new FileWriter(csv, true);
             BufferedWriter writer = new BufferedWriter(fileWriter);
-            for (int i = 0; i < 7; i++) {
-                String strToWrite = this.encloseInQuotes(inParsedData[i]);
-                writer.write(strToWrite, 0, strToWrite.length());
-                if (i < 6) {
-                    writer.write(";", 0, 1);
-                }
-            }
-            writer.newLine();
-            writer.close();
-        } catch(IOException ex){
+            this.writeParsedDataToCSV(writer, inParsedData);
+        } catch (IOException ex) {
             ex.printStackTrace();
         }
+
+    }
+
+    private void writeParsedDataToCSV(BufferedWriter inWriter, String[] inParsedData) {
+        try {
+            for (int i = 0; i < 7; i++) {
+                String strToWrite = this.encloseInQuotes(inParsedData[i]);
+                inWriter.write(strToWrite, 0, strToWrite.length());
+                if (i < 6) {
+                    inWriter.write(";", 0, 1);
+                }
+            }
+            inWriter.newLine();
+        } catch(IOException ex){
+            ex.printStackTrace();
+        } finally {
+            try {
+                inWriter.close();
+            } catch(IOException ex){
+                ex.printStackTrace();
+            }
+        }
+
+    }
+
+    public class ParsedData {
+        static final int URL = 0;
+        static final int TITLE = 1;
+        static final int DESCRIPTION = 2;
+        static final int H1 = 3;
+        static final int BESTREVIEW = 4;
+        static final int BREADCRUMBS = 5;
+        static final int PAGEPATH = 6;
+
+        private ArrayList<String> breadcrumbs = new ArrayList<String>();
+
+        String[] parsedData = new String[7];
+
+        public void setUrl(String inUrl) {
+            this.parsedData[URL] = inUrl;
+        }
+
+        public void setTitle(String inTitle) {
+            this.parsedData[TITLE] = inTitle;
+        }
+
+        public void setDescription(String inDescription) {
+            this.parsedData[DESCRIPTION] = inDescription;
+        }
+
+        public void setH1(String inH1) {
+            this.parsedData[H1] = inH1;
+        }
+
+
+        public void setBestreview(String inBestreview) {
+            this.parsedData[BESTREVIEW] = inBestreview;
+        }
+
+
+        public void setBreadcrumbs(String inBreadcrumbs) {
+            this.parsedData[BREADCRUMBS] = inBreadcrumbs;
+        }
+
+        public String getBreadcrumbs() {
+            return this.parsedData[BREADCRUMBS];
+        }
+
+
+        public void setPagepath(String inPagepath) {
+            this.parsedData[PAGEPATH] = inPagepath;
+        }
+
+        public String[] getParsedData() {
+            return parsedData;
+        }
+
     }
 }
