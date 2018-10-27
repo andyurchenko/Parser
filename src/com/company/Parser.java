@@ -8,8 +8,12 @@ public class Parser {
 
 
     public static void main(String[] args) {
-        Parser parser = new Parser(args[0]);
-        parser.run();
+        if(args[0] == null) {
+            System.out.println("Please, provide a folder to parse!");
+        } else {
+            Parser parser = new Parser(args[0]);
+            parser.run();
+        }
     }
 
     public Parser(String inPathToFiles) {
@@ -18,9 +22,13 @@ public class Parser {
     }
 
     private void run() {
+
         File[] filesToParse = this.getFsHelper().getFilesToParse();
+
         if(filesToParse != null) {
             this.processFiles(filesToParse);
+        } else {
+            System.out.println("There are no files to parse in the folder you've provided.");
         }
     }
 

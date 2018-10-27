@@ -38,40 +38,28 @@ public class DataExtractor {
     }
 
     private String getURL(Document inHTMLDocument) {
-        if (inHTMLDocument.selectFirst("meta[property=og:url]") != null) {
-            return inHTMLDocument.selectFirst("meta[property=og:url]").attr("content");
-        } else {
-            return null;
-        }
+        return this.execCssQuery("meta[property=og:url]", inHTMLDocument);
     }
 
     private String getTitle(Document inHTMLDocument) {
-        if (inHTMLDocument.selectFirst("div.o-pdp-topic__title h1[class=e-h1 sel-product-title]") != null) {
-            return inHTMLDocument.selectFirst("div.o-pdp-topic__title h1[class=e-h1 sel-product-title]").text();
-        } else {
-            return null;
-        }
+        return this.execCssQuery("div.o-pdp-topic__title h1[class=e-h1 sel-product-title]", inHTMLDocument);
     }
 
     private String getDescription(Document inHTMLDocument) {
-        if (inHTMLDocument.selectFirst("div.o-about-product__block div.collapse-text-initial") != null) {
-            return inHTMLDocument.selectFirst("div.o-about-product__block div.collapse-text-initial").text();
-        } else {
-            return null;
-        }
+        return this.execCssQuery("div.o-about-product__block div.collapse-text-initial", inHTMLDocument);
     }
 
     private String getBestReview(Document inHTMLDocument) {
-        if (inHTMLDocument.selectFirst("div.review-ext-item-description-item > p > span") != null) {
-            return inHTMLDocument.select("div.review-ext-item-description-item > p > span").text();
-        } else {
-            return null;
-        }
+        return this.execCssQuery("div.review-ext-item-description-item > p > span", inHTMLDocument);
     }
 
     private String getH1(Document inHTMLDocument) {
-        if (inHTMLDocument.selectFirst("div.o-pdp-topic__title h1[class=e-h1 sel-product-title]") != null) {
-            return inHTMLDocument.select("div.o-pdp-topic__title h1[class=e-h1 sel-product-title]").text();
+        return this.execCssQuery("div.o-pdp-topic__title h1[class=e-h1 sel-product-title]", inHTMLDocument);
+    }
+
+    private String execCssQuery(String inCSSQuery, Document inHTMLDocument) {
+        if (inHTMLDocument.selectFirst(inCSSQuery) != null) {
+            return inHTMLDocument.select(inCSSQuery).text();
         } else {
             return null;
         }

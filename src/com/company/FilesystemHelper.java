@@ -11,8 +11,10 @@ public class FilesystemHelper {
     private File csv = null;
 
     public FilesystemHelper(String inPathToFilesToParse) {
-        this.setPathToFilesToParse(inPathToFilesToParse);
-        this.setCsv(new File(this.getPathToFilesToParse() + File.separator + "db.csv"));
+        if(new File(inPathToFilesToParse).isDirectory()){
+            this.setPathToFilesToParse(inPathToFilesToParse);
+            this.setCsv(new File(this.getPathToFilesToParse() + File.separator + "db.csv"));
+        }
     }
 
     public void saveData(Data inData) {
@@ -23,7 +25,6 @@ public class FilesystemHelper {
     private BufferedWriter getWriter() {
         BufferedWriter writer = null;
         try {
-            //File csv = new File(this.getPathToFilesToParse() + File.separator + "db.csv");
             writer = new BufferedWriter(new FileWriter(this.getCsv(), true));
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -61,10 +62,10 @@ public class FilesystemHelper {
     }
 
     private String encloseInQuotes(String inString) {
-        StringBuilder strBuilder = new StringBuilder();
         if(inString == null || inString.equals("")) {
             return "";
         }
+        StringBuilder strBuilder = new StringBuilder();
         strBuilder.append("\"");
         for(int i = 0; i < inString.length(); i++) {
             char charInStr = inString.charAt(i);
@@ -80,27 +81,26 @@ public class FilesystemHelper {
     public void  moveFile(File inFile, String pathToMoveFileTo) {
         try{
             File foldersToCreate = new File(pathToMoveFileTo);
-            foldersToCreate.mkdirs();
-            Files.move(Paths.get(inFile.getAbsolutePath()), Paths.get(pathToMoveFileTo + inFile.getName()), REPLACE_EXISTING);
+            if(foldersToCreate.mkdirs()){
+                Files.move(Paths.get(inFile.getCanonicalPath()), Paths.get(pathToMoveFileTo + inFile.getName()), REPLACE_EXISTING);
+            }
         } catch (IOException ex) {
             ex.printStackTrace();
         }
-
     }
 
     public File[] getFilesToParse() {
         File dirToLookForFilesToParse = new File(this.getPathToFilesToParse());
         if (dirToLookForFilesToParse.isDirectory()) {
-            FilenameFilter fileFilter = new FilenameFilter() {
-                public boolean accept(File inDir, String inFileName) {
-                    String lowercaseName = inFileName.toLowerCase();
-                    return (lowercaseName.endsWith(".htm")
-                            || lowercaseName.endsWith(".html")
-                            || lowercaseName.endsWith(".php")
-                            || lowercaseName.endsWith(".txt"));
-                }
-            };
-            return dirToLookForFilesToParse.listFiles(fileFilter);
+            return dirToLookForFilesToParse.listFiles(
+                                                        (File inDir, String inFileName) -> {
+                                                            String lowercaseName = inFileName.toLowerCase();
+                                                            return (lowercaseName.endsWith(".htm")
+                                                                    || lowercaseName.endsWith(".html")
+                                                                    || lowercaseName.endsWith(".php")
+                                                                    || lowercaseName.endsWith(".txt"));
+                                                        }
+                                                       );
         } else {
             return null;
         }
