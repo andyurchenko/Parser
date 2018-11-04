@@ -38,7 +38,11 @@ public class DataExtractor {
     }
 
     private String getURL(Document inHTMLDocument) {
-        return this.execCssQuery("meta[property=og:url]", inHTMLDocument);
+        if (inHTMLDocument.selectFirst("meta[property=og:url]") != null) {
+            return inHTMLDocument.select("meta[property=og:url]").first().attr("content");
+        } else {
+            return null;
+        }
     }
 
     private String getTitle(Document inHTMLDocument) {

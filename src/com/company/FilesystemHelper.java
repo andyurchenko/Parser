@@ -2,6 +2,9 @@ package com.company;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Iterator;
+
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 
@@ -9,11 +12,14 @@ public class FilesystemHelper {
 
     private String pathToFilesToParse = null;
     private File csv = null;
+    private ArrayList<File> fileListToParse = new ArrayList<File>();
+    private Iterator<File> iteratorForFileListToParse;
 
     public FilesystemHelper(String inPathToFilesToParse) {
         if(new File(inPathToFilesToParse).isDirectory()){
             this.setPathToFilesToParse(inPathToFilesToParse);
             this.setCsv(new File(this.getPathToFilesToParse() + File.separator + "db.csv"));
+            this.setFileListToParse(this.getFilesToParse());
         }
     }
 
@@ -81,7 +87,10 @@ public class FilesystemHelper {
     public void  moveFile(File inFile, String pathToMoveFileTo) {
         try{
             File foldersToCreate = new File(pathToMoveFileTo);
-            if(foldersToCreate.mkdirs()){
+            if(foldersToCreate.exists()) {
+                Files.move(Paths.get(inFile.getCanonicalPath()), Paths.get(pathToMoveFileTo + inFile.getName()), REPLACE_EXISTING);
+
+            } else if(foldersToCreate.mkdirs()){
                 Files.move(Paths.get(inFile.getCanonicalPath()), Paths.get(pathToMoveFileTo + inFile.getName()), REPLACE_EXISTING);
             }
         } catch (IOException ex) {
@@ -93,14 +102,39 @@ public class FilesystemHelper {
         File dirToLookForFilesToParse = new File(this.getPathToFilesToParse());
         if (dirToLookForFilesToParse.isDirectory()) {
             return dirToLookForFilesToParse.listFiles(
-                                                        (File inDir, String inFileName) -> {
-                                                            String lowercaseName = inFileName.toLowerCase();
-                                                            return (lowercaseName.endsWith(".htm")
-                                                                    || lowercaseName.endsWith(".html")
-                                                                    || lowercaseName.endsWith(".php")
-                                                                    || lowercaseName.endsWith(".txt"));
-                                                        }
-                                                       );
+                    (File inDir, String inFileName) -> {
+                        String lowercaseName = inFileName.toLowerCase();
+                        return (lowercaseName.endsWith(".htm")
+                                || lowercaseName.endsWith(".html")
+                                || lowercaseName.endsWith(".php")
+                                || lowercaseName.endsWith(".txt"));
+                    }
+            );
+        } else {
+            return null;
+        }
+    }
+
+//    public File[] getFilesToParse() {
+//        File dirToLookForFilesToParse = new File(this.getPathToFilesToParse());
+//        if (dirToLookForFilesToParse.isDirectory()) {
+//            return dirToLookForFilesToParse.listFiles(
+//                                                        (File inDir, String inFileName) -> {
+//                                                            String lowercaseName = inFileName.toLowerCase();
+//                                                            return (lowercaseName.endsWith(".htm")
+//                                                                    || lowercaseName.endsWith(".html")
+//                                                                    || lowercaseName.endsWith(".php")
+//                                                                    || lowercaseName.endsWith(".txt"));
+//                                                        }
+//                                                       );
+//        } else {
+//            return null;
+//        }
+//    }
+
+    public synchronized File getFileToParse() {
+        if(this.iteratorForFileListToParse.hasNext()) {
+            return this.iteratorForFileListToParse.next();
         } else {
             return null;
         }
@@ -120,5 +154,20 @@ public class FilesystemHelper {
 
     private void setCsv(File csv) {
         this.csv = csv;
+    }
+
+    public ArrayList<File> getFileListToParse() {
+        return fileListToParse;
+    }
+
+    public void setFileListToParse(File[] inFileListToParse) {
+        for(File file : inFileListToParse) {
+            this.fileListToParse.add(file);
+        }
+        this.setIteratorForFileListToParse(this.fileListToParse.iterator());
+    }
+
+    public void setIteratorForFileListToParse(Iterator<File> iteratorForFileListToParse) {
+        this.iteratorForFileListToParse = iteratorForFileListToParse;
     }
 }

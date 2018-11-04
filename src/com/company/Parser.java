@@ -1,7 +1,7 @@
 package com.company;
 import java.io.*;
 
-public class Parser {
+public class Parser implements Runnable {
 
     private FilesystemHelper fsHelper = null;
     private DataExtractor dataExtractor = null;
@@ -12,7 +12,16 @@ public class Parser {
             System.out.println("Please, provide a folder to parse!");
         } else {
             Parser parser = new Parser(args[0]);
-            parser.run();
+            Thread t1 = new Thread(parser);
+            t1.setName("t1");
+            Thread t2 = new Thread(parser);
+            t2.setName("t2");
+            Thread t3 = new Thread(parser);
+            t3.setName("t3");
+            t1.start();
+            t2.start();
+            t3.start();
+            //parser.run();
         }
     }
 
@@ -21,24 +30,46 @@ public class Parser {
         this.setDataExtractor(new DataExtractor());
     }
 
-    private void run() {
-
-        File[] filesToParse = this.getFsHelper().getFilesToParse();
-
-        if(filesToParse != null) {
-            this.processFiles(filesToParse);
-        } else {
-            System.out.println("There are no files to parse in the folder you've provided.");
+    public void run() {
+        File fileToParse = null;
+        while( (fileToParse = this.getFsHelper().getFileToParse()) != null) {
+            this.processFile(fileToParse);
         }
     }
 
-    private void processFiles(File[] inListFiles) {
-        for(File file : inListFiles) {
-            Data dataParsed = this.dataExtractor.parseFile(file);
+//    private void run() {
+//
+//        File[] filesToParse = this.getFsHelper().getFilesToParse();
+//
+//        if(filesToParse != null) {
+//            this.processFiles(filesToParse);
+//        } else {
+//            System.out.println("There are no files to parse in the folder you've provided.");
+//        }
+//    }
+
+    private void processFile(File inFile) {
+        try {
+            Thread.sleep(500);
+            //System.out.println(Thread.currentThread().getName());
+        } catch(InterruptedException ex) {
+            ex.printStackTrace();
+        }
+            Data dataParsed = this.dataExtractor.parseFile(inFile);
             this.getFsHelper().saveData(dataParsed);
-            this.getFsHelper().moveFile(file, dataParsed.getPathToMoveFileTo());
-        }
+            this.getFsHelper().moveFile(inFile, dataParsed.getPathToMoveFileTo());
+
     }
+
+//    private void processFiles(File[] inListFiles) {
+//        for(File file : inListFiles) {
+//            Data dataParsed = this.dataExtractor.parseFile(file);
+//            this.getFsHelper().saveData(dataParsed);
+//            this.getFsHelper().moveFile(file, dataParsed.getPathToMoveFileTo());
+//        }
+//    }
+
+
 
     private FilesystemHelper getFsHelper() {
         return fsHelper;
