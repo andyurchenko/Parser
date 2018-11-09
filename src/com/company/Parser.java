@@ -1,11 +1,12 @@
 package com.company;
 import java.io.*;
+import java.util.concurrent.*;
 
 public class Parser implements Runnable {
 
     private FilesystemHelper fsHelper = null;
     private DataExtractor dataExtractor = null;
-
+    ConcurrentLinkedQueue<Data> queue = new ConcurrentLinkedQueue<Data>();
 
     public static void main(String[] args) {
         if(args[0] == null) {
@@ -21,12 +22,14 @@ public class Parser implements Runnable {
             t1.start();
             t2.start();
             t3.start();
-            //parser.run();
+            QueueHelper queueHelper = new QueueHelper(parser.getQueue(), args[0], t1, t2, t3);
+            Thread t4_queue = new Thread(queueHelper);
+            t4_queue.start();
         }
     }
 
     public Parser(String inPathToFiles) {
-        this.setFsHelper(new FilesystemHelper(inPathToFiles));
+        this.setFsHelper(new FilesystemHelper(inPathToFiles, this.queue));
         this.setDataExtractor(new DataExtractor());
     }
 
@@ -55,9 +58,11 @@ public class Parser implements Runnable {
         } catch(InterruptedException ex) {
             ex.printStackTrace();
         }
-            Data dataParsed = this.dataExtractor.parseFile(inFile);
-            this.getFsHelper().saveData(dataParsed);
+        Data dataParsed = this.dataExtractor.parseFile(inFile);
+        if(this.getFsHelper().saveData(dataParsed)) {
             this.getFsHelper().moveFile(inFile, dataParsed.getPathToMoveFileTo());
+        }
+
 
     }
 
@@ -87,24 +92,13 @@ public class Parser implements Runnable {
         this.dataExtractor = dataExtractor;
     }
 
+    public ConcurrentLinkedQueue<Data> getQueue() {
+        return queue;
+    }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    public void setQueue(ConcurrentLinkedQueue<Data> queue) {
+        this.queue = queue;
+    }
 
 //    private static final int URL = 0;
 //    private static final int TITLE = 1;
