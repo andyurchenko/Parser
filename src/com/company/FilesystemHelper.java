@@ -15,20 +15,29 @@ public class FilesystemHelper {
     private File csv = null;
     private ArrayList<File> fileListToParse = new ArrayList<File>();
     private Iterator<File> iteratorForFileListToParse;
-    private ConcurrentLinkedQueue<Data> queue = null;
+    //private ConcurrentLinkedQueue<Data> queue = null;
+    DataSaver dataSaver = null;
 
-    public FilesystemHelper(String inPathToFilesToParse, ConcurrentLinkedQueue<Data> inQueue) {
+    public FilesystemHelper(String inPathToFilesToParse) {
         if(new File(inPathToFilesToParse).isDirectory()){
             this.setPathToFilesToParse(inPathToFilesToParse);
             this.setCsv(new File(this.getPathToFilesToParse() + File.separator + "db.csv"));
             this.setFileListToParse(this.getFilesToParse());
-            this.queue = inQueue;
         }
     }
 
-    public boolean saveData(Data inData) {
-        return this.queue.add(inData);
-    }
+//    public FilesystemHelper(String inPathToFilesToParse, ConcurrentLinkedQueue<Data> inQueue) {
+//        if(new File(inPathToFilesToParse).isDirectory()){
+//            this.setPathToFilesToParse(inPathToFilesToParse);
+//            this.setCsv(new File(this.getPathToFilesToParse() + File.separator + "db.csv"));
+//            this.setFileListToParse(this.getFilesToParse());
+//            this.queue = inQueue;
+//        }
+//    }
+
+//    public boolean saveData(Data inData) {
+//        return this.queue.add(inData);
+//    }
 
 //    public void saveData(Data inData) {
 //        BufferedWriter writer = this.getWriter();

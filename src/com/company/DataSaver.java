@@ -7,39 +7,46 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 
-public class QueueHelper implements Runnable {
+public class DataSaver {
 
-    ConcurrentLinkedQueue<Data> queue = null;
+    ConcurrentLinkedQueue<Data> queue = new ConcurrentLinkedQueue<Data>();
     String PathToCSVFile;
     private File csv = null;
-    Thread thread1 = null;
-    Thread thread2 = null;
-    Thread thread3 = null;
+    private Worker worker;
+    private Thread workerThread;
 
 
-    public QueueHelper(ConcurrentLinkedQueue<Data> inQueue, String inPath, Thread inThread1, Thread inThread2, Thread inThread3) {
-        this.queue = inQueue;
+    public DataSaver(String inPath) {
         this.setPathToCSVFile(inPath);
         this.setCsv(new File(this.getPathToCSVFile() + File.separator + "db.csv"));
-        this.thread1 = inThread1;
-        this.thread2 = inThread2;
-        this.thread3 = inThread3;
+        worker = new Worker();
+        workerThread = new Thread(worker);
+        workerThread.start();
     }
 
-    public void run() {
+//    public DataSaver(ConcurrentLinkedQueue<Data> inQueue, String inPath, Thread inThread1, Thread inThread2, Thread inThread3) {
+//        this.queue = inQueue;
+//        this.setPathToCSVFile(inPath);
+//        this.setCsv(new File(this.getPathToCSVFile() + File.separator + "db.csv"));
+//        this.thread1 = inThread1;
+//        this.thread2 = inThread2;
+//        this.thread3 = inThread3;
+//    }
 
-        while(thread1.isAlive() || thread2.isAlive() || thread3.isAlive()) {
-            Data data;
-            while ((data = queue.poll()) != null) {
-                this.saveData(data);
-            }
-            try {
-                //Thread.currentThread().sleep(200);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        }
-    }
+//    public void run() {
+//
+//        while(true) {
+//            Data data;
+//            while ((data = queue.poll()) != null) {
+//                this.saveData(data);
+//            }
+//            try {
+//                //Thread.currentThread().sleep(200);
+//            } catch (Exception ex) {
+//                ex.printStackTrace();
+//            }
+//        }
+//    }
 
     private File getCsv() {
         return csv;
@@ -118,5 +125,66 @@ public class QueueHelper implements Runnable {
         return strBuilder.toString();
     }
 
+    public boolean add(Data inData) {
+        this.queue.add(inData);
+        try {
+            synchronized(worker) {
+                this.worker.notifyAll();
+            }
+        } catch (IllegalMonitorStateException ex) {
+            ex.printStackTrace();
+        }
 
+        return true;
+    }
+
+    public void stop() {
+        worker.stop();
+        try {
+            workerThread.join();
+        } catch(InterruptedException ex) {
+            ex.printStackTrace();
+        }
+        workerThread = null;
+    }
+
+    private class Worker implements Runnable {
+
+        private boolean threadIsCancelled = true;
+        private Data dataToSave = null;
+        private int index = 0;
+
+        public void run() {
+            this.threadIsCancelled = false;
+            while (!this.threadIsCancelled) {
+                try {
+                    if((this.dataToSave = queue.poll()) != null) {
+                        //сохраняем данные на диск
+                        //System.out.println(this.dataToSave.getTitle());
+                        DataSaver.this.saveData(dataToSave);
+
+                    } else {
+                        synchronized (this) {
+                            this.wait();
+                        }
+                    }
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }
+
+        public void stop() {
+            this.threadIsCancelled = true;
+            try {
+                synchronized (this) {
+                    this.notifyAll();
+                }
+
+            } catch(IllegalMonitorStateException ex) {
+                ex.printStackTrace();
+            }
+        }
+
+    }
 }

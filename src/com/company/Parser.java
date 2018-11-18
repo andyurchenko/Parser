@@ -6,13 +6,15 @@ public class Parser implements Runnable {
 
     private FilesystemHelper fsHelper = null;
     private DataExtractor dataExtractor = null;
-    ConcurrentLinkedQueue<Data> queue = new ConcurrentLinkedQueue<Data>();
+    private DataSaver dataSaver = null;
 
     public static void main(String[] args) {
         if(args[0] == null) {
             System.out.println("Please, provide a folder to parse!");
         } else {
-            Parser parser = new Parser(args[0]);
+
+            DataSaver dataSaver = new DataSaver(args[0]);
+            Parser parser = new Parser(args[0], dataSaver);
             Thread t1 = new Thread(parser);
             t1.setName("t1");
             Thread t2 = new Thread(parser);
@@ -22,15 +24,26 @@ public class Parser implements Runnable {
             t1.start();
             t2.start();
             t3.start();
-            QueueHelper queueHelper = new QueueHelper(parser.getQueue(), args[0], t1, t2, t3);
-            Thread t4_queue = new Thread(queueHelper);
-            t4_queue.start();
+
+            try {
+                t1.join();
+                t2.join();
+                t3.join();
+            } catch(InterruptedException ex) {
+                ex.printStackTrace();
+            }
+            dataSaver.stop();
+//            DataSaver dataSaver = new DataSaver(parser.getQueue(), args[0], t1, t2, t3);
+
+//            Thread t4_queue = new Thread(dataSaver);
+//            t4_queue.start();
         }
     }
 
-    public Parser(String inPathToFiles) {
-        this.setFsHelper(new FilesystemHelper(inPathToFiles, this.queue));
+    public Parser(String inPathToFiles, DataSaver inDataSaver) {
+        this.setFsHelper(new FilesystemHelper(inPathToFiles));
         this.setDataExtractor(new DataExtractor());
+        this.dataSaver = inDataSaver;
     }
 
     public void run() {
@@ -53,14 +66,15 @@ public class Parser implements Runnable {
 
     private void processFile(File inFile) {
         try {
-            Thread.sleep(500);
+            Thread.sleep(250);
             //System.out.println(Thread.currentThread().getName());
         } catch(InterruptedException ex) {
             ex.printStackTrace();
         }
-        Data dataParsed = this.dataExtractor.parseFile(inFile);
-        if(this.getFsHelper().saveData(dataParsed)) {
-            this.getFsHelper().moveFile(inFile, dataParsed.getPathToMoveFileTo());
+        Data dataExtractedFromFile = this.dataExtractor.parseFile(inFile);
+
+        if(this.dataSaver.add(dataExtractedFromFile)) {
+            this.getFsHelper().moveFile(inFile, dataExtractedFromFile.getPathToMoveFileTo());
         }
 
 
@@ -92,13 +106,6 @@ public class Parser implements Runnable {
         this.dataExtractor = dataExtractor;
     }
 
-    public ConcurrentLinkedQueue<Data> getQueue() {
-        return queue;
-    }
-
-    public void setQueue(ConcurrentLinkedQueue<Data> queue) {
-        this.queue = queue;
-    }
 
 //    private static final int URL = 0;
 //    private static final int TITLE = 1;
